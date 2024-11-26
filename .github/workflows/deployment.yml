@@ -3,7 +3,7 @@ name: Deploy Next.js to S3 and invalidate CloudFront
 on:
   push:
     branches:
-      - main # 또는 master, 프로젝트의 기본 브랜치 이름에 맞게 조정
+      - main # 프로젝트의 기본 브랜치 이름에 맞게 조정
   workflow_dispatch:
 
 jobs:
@@ -21,10 +21,19 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Deploy to S3
+      - name: Empty S3 bucket
         run: |
-          aws s3 sync . s3://${{ secrets.S3_BUCKET_NAME }} --delete --exclude "*" --include "css/*" --include "images/*" --include "js/*"
+          aws s3 rm s3://${{ secrets.S3_BUCKET_NAME }} --recursive
+          echo "S3 bucket emptied successfully."
+
+      - name: Deploy specific folders to S3
+        run: |
+          aws s3 sync ./css s3://${{ secrets.S3_BUCKET_NAME }}/css --delete
+          aws s3 sync ./images s3://${{ secrets.S3_BUCKET_NAME }}/images --delete
+          aws s3 sync ./js s3://${{ secrets.S3_BUCKET_NAME }}/js --delete
+          echo "Selected folders uploaded successfully."
 
       - name: Invalidate CloudFront cache
         run: |
           aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+          echo "CloudFront cache invalidated successfully."
